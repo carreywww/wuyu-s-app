@@ -1,10 +1,7 @@
-import { GoogleGenAI, Part } from "@google/genai";
+import { GoogleGenAI } from "@google/genai";
 
-// Initialize the Gemini API client
-// The API key is injected by the environment
+// Access API key safely from process.env as per guidelines
 const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
-const MODEL_NAME = 'gemini-2.5-flash-image';
 
 interface EditImageParams {
   imageBase64: string;
@@ -18,39 +15,36 @@ export const editImageWithGemini = async ({
   prompt
 }: EditImageParams): Promise<string | null> => {
   try {
-    // Prepare the parts for the multimodal request
-    const parts: Part[] = [
-      {
-        inlineData: {
-          data: imageBase64,
-          mimeType: imageMimeType,
-        },
-      },
-      {
-        text: prompt,
-      },
-    ];
-
     const response = await ai.models.generateContent({
-      model: MODEL_NAME,
-      contents: { parts },
-      // Config for image editing optimization if needed, but defaults are often sufficient.
-      // We rely on the prompt to drive the edit.
+      model: 'gemini-2.5-flash-image',
+      contents: {
+        parts: [
+          {
+            inlineData: {
+              mimeType: imageMimeType,
+              data: imageBase64
+            }
+          },
+          {
+            text: prompt
+          }
+        ]
+      }
     });
 
-    // Iterate through parts to find the image output
     if (response.candidates && response.candidates.length > 0) {
       const content = response.candidates[0].content;
       if (content && content.parts) {
         for (const part of content.parts) {
           if (part.inlineData && part.inlineData.data) {
-            return `data:${part.inlineData.mimeType || 'image/png'};base64,${part.inlineData.data}`;
+             const mime = part.inlineData.mimeType || 'image/png';
+             return `data:${mime};base64,${part.inlineData.data}`;
           }
         }
       }
     }
     
-    console.warn("No image data found in response:", response);
+    console.warn("No image data found in response");
     return null;
 
   } catch (error) {
