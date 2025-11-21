@@ -1,13 +1,35 @@
 import { GoogleGenAI, Part } from "@google/genai";
 
-// Initialize the Gemini API client
-// We check if we are in a production environment where we might want to use a proxy
-// Note: The SDK config needs to align with the proxy set up in vercel.json
-// If running locally, it uses the default Google endpoint.
-// For this specific "No VPN" request, we rely on the environment variable or default.
+// Helper to safely get the API key in a browser/Vite environment
+const getApiKey = (): string => {
+  // 1. Try Vite environment variable (standard for Vercel + Vite)
+  // @ts-ignore: import.meta is standard in Vite but might trigger linter without config
+  if (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_KEY) {
+    // @ts-ignore
+    return import.meta.env.VITE_API_KEY;
+  }
 
+  // 2. Fallback safely for other environments
+  try {
+    if (typeof process !== 'undefined' && process.env?.API_KEY) {
+      return process.env.API_KEY;
+    }
+  } catch (e) {
+    // Ignore error if process is undefined
+  }
+
+  return '';
+};
+
+const apiKey = getApiKey();
+
+if (!apiKey) {
+  console.warn("ProductCleanse AI: No API Key found. Please set VITE_API_KEY in your environment variables.");
+}
+
+// Initialize the Gemini API client
 const ai = new GoogleGenAI({ 
-  apiKey: process.env.API_KEY,
+  apiKey: apiKey,
 });
 
 const MODEL_NAME = 'gemini-2.5-flash-image';
@@ -36,21 +58,6 @@ export const editImageWithGemini = async ({
         text: prompt,
       },
     ];
-
-    // ------------------------------------------------------------------
-    // NOTE FOR DEPLOYMENT (NO VPN SOLUTION):
-    // To make this work in China without VPN, you CANNOT call ai.models.generateContent directly
-    // because it hits googleapis.com. You must route through a proxy.
-    //
-    // Since we are using the official SDK, it hardcodes the endpoint.
-    // The robust solution is to MOVE this logic to a server-side API route
-    // (e.g., a Vercel Function), effectively creating a backend.
-    //
-    // However, keeping the current client-side architecture, we will attempt
-    // to use the SDK as designed. If you deploy this to Vercel, users in China
-    // WILL still need a VPN unless you completely rewrite this service 
-    // to use a custom fetch implementation against a proxy.
-    // ------------------------------------------------------------------
 
     const response = await ai.models.generateContent({
       model: MODEL_NAME,
