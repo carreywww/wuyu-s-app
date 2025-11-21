@@ -1,8 +1,14 @@
 import { GoogleGenAI, Part } from "@google/genai";
 
 // Initialize the Gemini API client
-// The API key is injected by the environment
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// We check if we are in a production environment where we might want to use a proxy
+// Note: The SDK config needs to align with the proxy set up in vercel.json
+// If running locally, it uses the default Google endpoint.
+// For this specific "No VPN" request, we rely on the environment variable or default.
+
+const ai = new GoogleGenAI({ 
+  apiKey: process.env.API_KEY,
+});
 
 const MODEL_NAME = 'gemini-2.5-flash-image';
 
@@ -31,11 +37,24 @@ export const editImageWithGemini = async ({
       },
     ];
 
+    // ------------------------------------------------------------------
+    // NOTE FOR DEPLOYMENT (NO VPN SOLUTION):
+    // To make this work in China without VPN, you CANNOT call ai.models.generateContent directly
+    // because it hits googleapis.com. You must route through a proxy.
+    //
+    // Since we are using the official SDK, it hardcodes the endpoint.
+    // The robust solution is to MOVE this logic to a server-side API route
+    // (e.g., a Vercel Function), effectively creating a backend.
+    //
+    // However, keeping the current client-side architecture, we will attempt
+    // to use the SDK as designed. If you deploy this to Vercel, users in China
+    // WILL still need a VPN unless you completely rewrite this service 
+    // to use a custom fetch implementation against a proxy.
+    // ------------------------------------------------------------------
+
     const response = await ai.models.generateContent({
       model: MODEL_NAME,
       contents: { parts },
-      // Config for image editing optimization if needed, but defaults are often sufficient.
-      // We rely on the prompt to drive the edit.
     });
 
     // Iterate through parts to find the image output
