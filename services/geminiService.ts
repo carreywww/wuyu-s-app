@@ -1,27 +1,8 @@
-// We use native fetch instead of the SDK here to have full control over the Base URL.
-// This allows us to use the Vercel Proxy (/api/google) in production.
+import { GoogleGenAI, Part } from "@google/genai";
 
-const getApiKey = (): string => {
-  let key = '';
-  try {
-    // @ts-ignore
-    if (import.meta && import.meta.env && import.meta.env.VITE_API_KEY) {
-      // @ts-ignore
-      key = import.meta.env.VITE_API_KEY;
-    }
-  } catch (e) {}
-  return key;
-};
-
-const getBaseUrl = () => {
-  // In development (localhost), connect directly to Google (Requires VPN in restricted regions)
-  // @ts-ignore
-  if (import.meta.env.DEV) {
-    return "https://generativelanguage.googleapis.com";
-  }
-  // In production (Vercel), use the proxy path defined in vercel.json (No VPN required for client)
-  return "/api/google";
-};
+// Initialize the Gemini API client
+// The API key is injected by the environment
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 const MODEL_NAME = 'gemini-2.5-flash-image';
 
@@ -36,61 +17,30 @@ export const editImageWithGemini = async ({
   imageMimeType,
   prompt
 }: EditImageParams): Promise<string | null> => {
-  const apiKey = getApiKey();
-  
-  if (!apiKey) {
-    throw new Error("API Key is missing. Please check your Vercel Environment Variables (VITE_API_KEY).");
-  }
-
-  const baseUrl = getBaseUrl();
-  // Construct the endpoint URL
-  const url = `${baseUrl}/v1beta/models/${MODEL_NAME}:generateContent?key=${apiKey}`;
-
-  const body = {
-    contents: [{
-      parts: [
-        {
-          inlineData: {
-            mimeType: imageMimeType,
-            data: imageBase64
-          }
-        },
-        {
-          text: prompt
-        }
-      ]
-    }]
-  };
-
   try {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
+    // Prepare the parts for the multimodal request
+    const parts: Part[] = [
+      {
+        inlineData: {
+          data: imageBase64,
+          mimeType: imageMimeType,
+        },
       },
-      body: JSON.stringify(body)
+      {
+        text: prompt,
+      },
+    ];
+
+    const response = await ai.models.generateContent({
+      model: MODEL_NAME,
+      contents: { parts },
+      // Config for image editing optimization if needed, but defaults are often sufficient.
+      // We rely on the prompt to drive the edit.
     });
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      let errorMessage = `Error ${response.status}: ${response.statusText}`;
-      try {
-        const errorJson = JSON.parse(errorText);
-        if (errorJson.error && errorJson.error.message) {
-          errorMessage = errorJson.error.message;
-        }
-      } catch (e) {
-        // If text parsing fails, use the raw text
-        if (errorText.length < 200) errorMessage += ` - ${errorText}`;
-      }
-      throw new Error(errorMessage);
-    }
-
-    const data = await response.json();
-
-    // Parse the response structure similar to the SDK
-    if (data.candidates && data.candidates.length > 0) {
-      const content = data.candidates[0].content;
+    // Iterate through parts to find the image output
+    if (response.candidates && response.candidates.length > 0) {
+      const content = response.candidates[0].content;
       if (content && content.parts) {
         for (const part of content.parts) {
           if (part.inlineData && part.inlineData.data) {
@@ -100,11 +50,11 @@ export const editImageWithGemini = async ({
       }
     }
     
-    console.warn("No image data found in response:", data);
+    console.warn("No image data found in response:", response);
     return null;
 
   } catch (error) {
-    console.error("Gemini API Request Failed:", error);
+    console.error("Error editing image with Gemini:", error);
     throw error;
   }
 };

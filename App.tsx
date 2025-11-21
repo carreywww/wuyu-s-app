@@ -26,7 +26,7 @@ const TRANSLATIONS = {
     proTipTitle: "Pro Tip",
     proTipContent: "Be specific with your instructions. Instead of \"Change background\", try \"Replace the background with a minimal wooden desk with soft morning sunlight\".",
     errorNoImage: "Failed to generate image. Please try a different prompt.",
-    errorConn: "An error occurred:",
+    errorConn: "An error occurred while connecting to Gemini.",
     uploadLabels: {
       drop: 'Drop it here',
       click: 'Click or drop image',
@@ -58,7 +58,7 @@ const TRANSLATIONS = {
     proTipTitle: "专业提示",
     proTipContent: "指令越具体越好。不要只说“换背景”，试着说“把背景换成晨光下的极简木桌”。",
     errorNoImage: "生成图片失败。请尝试不同的提示词。",
-    errorConn: "发生错误：",
+    errorConn: "连接 Gemini 时出错。",
     uploadLabels: {
       drop: '拖放到这里',
       click: '点击或拖放图片',
@@ -110,10 +110,8 @@ const App: React.FC = () => {
       } else {
         setError(t.errorNoImage);
       }
-    } catch (err: any) {
-      // Display the actual error message from the service
-      const errorMsg = err instanceof Error ? err.message : String(err);
-      setError(`${t.errorConn} ${errorMsg}`);
+    } catch (err) {
+      setError(t.errorConn);
       console.error(err);
     } finally {
       setIsLoading(false);
@@ -230,13 +228,8 @@ const App: React.FC = () => {
                  </Button>
 
                  {error && (
-                   <div className="p-4 bg-red-50 border border-red-100 rounded-xl text-red-600 text-sm flex flex-col">
-                     <div className="flex items-center font-semibold mb-1">
-                        <span className="mr-2">⚠️</span> 错误详情
-                     </div>
-                     <div className="pl-6 opacity-90 break-all">
-                       {error}
-                     </div>
+                   <div className="p-4 bg-red-50 border border-red-100 rounded-xl text-red-600 text-sm flex items-center">
+                     <span className="mr-2">⚠️</span> {error}
                    </div>
                  )}
                </div>
