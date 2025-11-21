@@ -5,9 +5,24 @@ import { ImageFile } from '../types';
 interface ImageUploaderProps {
   onImageSelected: (image: ImageFile | null) => void;
   selectedImage: ImageFile | null;
+  labels?: {
+    drop: string;
+    click: string;
+    support: string;
+    original: string;
+  };
 }
 
-export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageSelected, selectedImage }) => {
+export const ImageUploader: React.FC<ImageUploaderProps> = ({ 
+  onImageSelected, 
+  selectedImage,
+  labels = {
+    drop: 'Drop it here',
+    click: 'Click or drop image',
+    support: 'Supports JPG, PNG, WEBP up to 10MB',
+    original: 'Original'
+  }
+}) => {
   const [isDragging, setIsDragging] = useState(false);
 
   const processFile = (file: File) => {
@@ -75,7 +90,7 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageSelected, s
           </button>
         </div>
         <div className="absolute bottom-3 left-3 bg-black/50 backdrop-blur-sm text-white text-xs px-2 py-1 rounded-md">
-          Original
+          {labels.original}
         </div>
       </div>
     );
@@ -110,10 +125,10 @@ export const ImageUploader: React.FC<ImageUploaderProps> = ({ onImageSelected, s
         </div>
         <div>
           <p className="text-lg font-semibold text-slate-700">
-            {isDragging ? 'Drop it here' : 'Click or drop image'}
+            {isDragging ? labels.drop : labels.click}
           </p>
           <p className="text-sm text-slate-500 mt-1">
-            Supports JPG, PNG, WEBP up to 10MB
+            {labels.support}
           </p>
         </div>
       </div>
